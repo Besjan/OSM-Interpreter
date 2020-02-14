@@ -1,4 +1,4 @@
-﻿namespace Cuku
+﻿namespace Cuku.Osm
 {
     using System.Collections.Generic;
     using UnityEngine;
