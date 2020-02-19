@@ -9,6 +9,8 @@ namespace Cuku.Geo
         public Relation[] Relations { get; set; }
         [Key(1)]
         public Line[] Lines { get; set; }
+        [Key(2)]
+        public Point[] Points { get; set; }
     }
 
     [Union(0, typeof(Point))]
