@@ -1,7 +1,6 @@
 ﻿namespace Cuku.Geo
 {
     using System.Collections.Generic;
-    using UnityEngine;
     using UnityEditor;
     using System.IO;
     using System.Linq;
@@ -12,7 +11,7 @@
     using OsmSharp.Tags;
     using MessagePack;
 
-    public static class OSMInterpreter
+    public static class ExtractFeatures
     {
         static string SourceDataPath = "Assets/StreamingAssets/Data/berlin.pbf";
 
@@ -38,75 +37,8 @@
             centerPoint = centerPointGeo.TransformPoint();
         }
 
-        static bool ContainsAllTags(this TagsCollectionBase osmGeoTags, Tag[] tags)
-        {
-            for (int i = 0; i < tags.Length; i++)
-            {
-                if (!osmGeoTags.Contains(tags[i].Key, tags[i].Value))
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        static RelationMember[] GetMembers(this OsmSharp.Relation osmRelation, string[] roles)
-        {
-            var members = new List<RelationMember>();
-
-            for (int r = 0; r < roles.Length; r++)
-            {
-                var osmMember = osmRelation.Members.Where(m => m.Role == roles[r]).ToArray();
-                for (int m = 0; m < osmMember.Length; m++)
-                {
-                    var member = new RelationMember
-                    {
-                        Id = osmMember[m].Id,
-                        Type = osmMember[m].Type.GetGeoType(),
-                        Role = osmMember[m].Role
-                    };
-
-                    members.Add(member);
-                }
-            }
-
-            return members.ToArray();
-        }
-
-        static Point ToPoint(this Node node, double[] center)
-        {
-            var transformPoint = (new double[] { node.Longitude.Value, node.Latitude.Value }).TransformPoint();
-
-            return new Point
-            {
-                X = transformPoint[0] - center[0],
-                Y = transformPoint[1] - center[1]
-            };
-        }
-
-        static double[] TransformPoint(this double[] point)
-        {
-            return trans.MathTransform.Transform(point);
-        }
-
-        static Type GetGeoType(this OsmGeoType osmGeoType)
-        {
-            switch (osmGeoType)
-            {
-                case OsmGeoType.Node:
-                    return Type.Point;
-                case OsmGeoType.Way:
-                    return Type.Line;
-                case OsmGeoType.Relation:
-                    return Type.Relation;
-                default:
-                    return Type.Point;
-            }
-        }
-
-        [MenuItem("Cuku/OSM/Extract City Border")]
-        static void ExtractCityBorder()
+        [MenuItem("Cuku/Extract Features")]
+        static void ExtractFeaturesData()
         {
             Initialize();
 
@@ -123,7 +55,7 @@
                     new RelationMember
                     {
                         Type = Type.Line,
-                        Role = "outer" 
+                        Role = "outer"
                     }
                 }
             };
@@ -133,10 +65,10 @@
                 var source = new PBFOsmStreamSource(fileStream);
 
                 var filtered = from osmGeo in source
-                    where osmGeo.Type == OsmGeoType.Node ||
-                    osmGeo.Type == OsmGeoType.Way ||
-                    (osmGeo.Type == OsmGeoType.Relation && osmGeo.Tags != null && osmGeo.Tags.ContainsAllTags(filterRelation.Tags))
-                    select osmGeo;
+                               where osmGeo.Type == OsmGeoType.Node ||
+                               osmGeo.Type == OsmGeoType.Way ||
+                               (osmGeo.Type == OsmGeoType.Relation && osmGeo.Tags != null && osmGeo.Tags.ContainsAllTags(filterRelation.Tags))
+                               select osmGeo;
 
                 var complete = filtered.ToComplete();
 
@@ -243,96 +175,71 @@
             }
         }
 
-        //[MenuItem("Cuku/OSM/Extract City Border")]
-        /*static void ExtractCityBorderOld()
+        static bool ContainsAllTags(this TagsCollectionBase osmGeoTags, Tag[] tags)
         {
-            Initialize();
-
-            using (var fileStream = File.OpenRead(SourceDataPath))
+            for (int i = 0; i < tags.Length; i++)
             {
-                var source = new PBFOsmStreamSource(fileStream);
-
-                var filtered = from osmGeo in source
-                               where osmGeo.Type == OsmGeoType.Node ||
-                               osmGeo.Type == OsmGeoType.Way ||
-                               (osmGeo.Type == OsmGeoType.Relation &&
-                               osmGeo.Tags != null && osmGeo.Tags.Contains("admin_level", "4") && osmGeo.Tags.Contains("type", "boundary"))
-                               select osmGeo;
-
-                var complete = filtered.ToComplete();
-
-                var boundary = complete.Where(x => x.Type == OsmGeoType.Relation).First();
-                var ways = complete.Where(x => x.Type == OsmGeoType.Way).ToArray();
-                var nodes = complete.Where(x => x.Type == OsmGeoType.Node).ToArray();
-
-                // Get outer ways
-                List<long> outerWays = new List<long>();
-
-                foreach (OsmGeo osmgeo in filtered)
+                if (!osmGeoTags.Contains(tags[i].Key, tags[i].Value))
                 {
-                    var relation = osmgeo as Relation;
-                    if (relation == null || relation.Id != boundary.Id) continue;
-
-                    outerWays = relation.Members.Where(m => m.Type == OsmGeoType.Way && m.Role == "outer")
-                        .Select(m => m.Id).ToList();
-                }
-
-                // Get way's nodes
-                Dictionary<long, long[]> wayNodes = new Dictionary<long, long[]>();
-                List<long> nodeIds = new List<long>();
-
-                foreach (OsmGeo osmgeo in filtered)
-                {
-                    var way = osmgeo as Way;
-                    if (way == null || !outerWays.Contains(way.Id.Value)) continue;
-
-                    wayNodes.Add(way.Id.Value, way.Nodes);
-                    nodeIds.AddRange(way.Nodes);
-                }
-
-                // Get boundary nodes
-                List<Node> boundaryNodes = new List<Node>();
-
-                foreach (OsmGeo osmGeo in filtered)
-                {
-                    var node = osmGeo as Node;
-                    if (node == null || !nodeIds.Contains(node.Id.Value)) continue;
-
-                    boundaryNodes.Add(node);
-                }
-
-                // Construct border
-                var borderObject = new GameObject("Border").transform;
-                var quadPrefab = Resources.Load<GameObject>("Quad");
-
-                for (int i = 0; i < wayNodes.Count; i++)
-                {
-                    var pair = wayNodes.ElementAt(i);
-                    var wayObject = new GameObject(pair.Key.ToString()).transform;
-                    wayObject.SetParent(borderObject);
-
-                    for (int n = 0; n < pair.Value.Length; n++)
-                    {
-                        var nodeId = pair.Value[n];
-                        var node = boundaryNodes.FirstOrDefault(bn => bn.Id.Value == nodeId);
-                        var nodePosition = node.GetPosition();
-
-                        var quad = GameObject.Instantiate(quadPrefab, wayObject).transform;
-                        quad.name = nodeId.ToString();
-                        quad.position = nodePosition;
-                    }
+                    return false;
                 }
             }
-        }*/
 
-        static Vector3 GetPosition(this Node node)
+            return true;
+        }
+
+        static RelationMember[] GetMembers(this OsmSharp.Relation osmRelation, string[] roles)
         {
-            var point = (new double[] { node.Longitude.Value, node.Latitude.Value }).TransformPoint();
+            var members = new List<RelationMember>();
 
-            var x = point[0] - centerPoint[0];
-            var z = point[1] - centerPoint[1];
+            for (int r = 0; r < roles.Length; r++)
+            {
+                var osmMember = osmRelation.Members.Where(m => m.Role == roles[r]).ToArray();
+                for (int m = 0; m < osmMember.Length; m++)
+                {
+                    var member = new RelationMember
+                    {
+                        Id = osmMember[m].Id,
+                        Type = osmMember[m].Type.GetGeoType(),
+                        Role = osmMember[m].Role
+                    };
 
-            return new Vector3((float)x, 0, (float)z);
+                    members.Add(member);
+                }
+            }
+
+            return members.ToArray();
+        }
+
+        static Point ToPoint(this Node node, double[] center)
+        {
+            var transformPoint = (new double[] { node.Longitude.Value, node.Latitude.Value }).TransformPoint();
+
+            return new Point
+            {
+                X = transformPoint[0] - center[0],
+                Y = transformPoint[1] - center[1]
+            };
+        }
+
+        static double[] TransformPoint(this double[] point)
+        {
+            return trans.MathTransform.Transform(point);
+        }
+
+        static Type GetGeoType(this OsmGeoType osmGeoType)
+        {
+            switch (osmGeoType)
+            {
+                case OsmGeoType.Node:
+                    return Type.Point;
+                case OsmGeoType.Way:
+                    return Type.Line;
+                case OsmGeoType.Relation:
+                    return Type.Relation;
+                default:
+                    return Type.Point;
+            }
         }
     }
 }
