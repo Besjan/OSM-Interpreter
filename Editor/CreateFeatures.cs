@@ -76,7 +76,11 @@
             }
 
             var wall = ProBuilderMesh.Create(vertices, faces);
+            Normals.CalculateNormals(wall);
+            Normals.CalculateTangents(wall);
             Smoothing.ApplySmoothingGroups(wall, faces, 30);
+            wall.Refresh();
+            wall.SetMaterial(faces, Resources.Load<Material>("TwoSideWithFace"));
             wall.gameObject.name = wall.name = name;
             wall.transform.SetParent(parent, true);
         }
