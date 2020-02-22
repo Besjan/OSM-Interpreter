@@ -42,20 +42,37 @@
         {
             Initialize();
 
-            var filterRelation = new Relation
+            // Filter
+            var boundaryFlter = new GeoFilter
             {
-                Tags = new Tag[]
-                 {
-                     new Tag { Key = "type", Value = "boundary" },
-                     new Tag { Key = "admin_level", Value = "4" }
-                 },
-
-                Members = new RelationMember[]
+                Tags = new TagFilter
                 {
-                    new RelationMember
+                    AllOfTags = new Tag[]
+                     {
+                         new Tag { Key = "type", Value = "boundary" },
+                         new Tag { Key = "boundary", Value = "administrative" },
+                         new Tag { Key = "admin_level", Value = "4" }
+                     },
+                    NoneOfTags = new Tag[] { }
+                },
+                RelationMembers = new RelationMemberFilter[]
+                {
+                    new RelationMemberFilter
                     {
                         Type = Type.Line,
-                        Role = "outer"
+                        Role = "outer",
+                        Tags = new TagFilter
+                        {
+                            AllOfTags = new Tag[]
+                            {
+                                new Tag { Key = "boundary", Value = "administrative" },
+                                new Tag { Key = "admin_level", Value = "4" }
+                            },
+                            NoneOfTags = new Tag[]
+                            {
+                                new Tag { Key = "description", Value = "Berlin Exclave" }
+                            }
+                        }
                     }
                 }
             };
@@ -67,7 +84,7 @@
                 var filtered = from osmGeo in source
                                where osmGeo.Type == OsmGeoType.Node ||
                                osmGeo.Type == OsmGeoType.Way ||
-                               (osmGeo.Type == OsmGeoType.Relation && osmGeo.Tags != null && osmGeo.Tags.ContainsAllTags(filterRelation.Tags))
+                               (osmGeo.Type == OsmGeoType.Relation && osmGeo.Tags != null && osmGeo.Tags.Match(boundaryFlter.Tags))
                                select osmGeo;
 
                 var complete = filtered.ToComplete();
@@ -76,6 +93,8 @@
                 var relations = new Relation[relationsCompleted.Length];
                 var lines = new List<Line>();
 
+                        UnityEngine.Debug.Log(relationsCompleted.Length);
+          
                 for (int r = 0; r < relations.Length; r++)
                 {
                     // Get RelationMembers
@@ -84,14 +103,15 @@
                         var osmRelation = osmgeo as OsmSharp.Relation;
                         if (osmRelation == null || osmRelation.Id != relationsCompleted[r].Id) continue;
 
-                        var roles = filterRelation.Members.Select(fr => fr.Role).ToArray();
+                        var relationMembers = filtered.ToArray().GetMembers(osmRelation, boundaryFlter.RelationMembers);
+                        UnityEngine.Debug.Log(relationMembers.Length);
 
                         var relation = new Relation
                         {
                             Id = osmRelation.Id.Value,
                             Type = Type.Relation,
-                            Tags = filterRelation.Tags,
-                            Members = osmRelation.GetMembers(roles)
+                            Tags = boundaryFlter.Tags.AllOfTags,
+                            Members = relationMembers
                         };
 
                         relations[r] = relation;
@@ -140,28 +160,6 @@
 
                         lines.Add(line);
                     }
-
-                    //// Construct border
-                    //var borderObject = new GameObject("Border").transform;
-                    //var quadPrefab = Resources.Load<GameObject>("Quad");
-
-                    //for (int i = 0; i < memberNodes.Count; i++)
-                    //{
-                    //    var pair = memberNodes.ElementAt(i);
-                    //    var wayObject = new GameObject(pair.Key.ToString()).transform;
-                    //    wayObject.SetParent(borderObject);
-
-                    //    for (int n = 0; n < pair.Value.Length; n++)
-                    //    {
-                    //        var nodeId = pair.Value[n];
-                    //        var node = nodes.FirstOrDefault(bn => bn.Id.Value == nodeId);
-                    //        var nodePosition = node.GetPosition();
-
-                    //        var quad = GameObject.Instantiate(quadPrefab, wayObject).transform;
-                    //        quad.name = nodeId.ToString();
-                    //        quad.position = nodePosition;
-                    //    }
-                    //}
                 }
 
                 var feature = new Feature
@@ -175,11 +173,24 @@
             }
         }
 
-        static bool ContainsAllTags(this TagsCollectionBase osmGeoTags, Tag[] tags)
+        static bool Match(this TagsCollectionBase osmGeoTags, TagFilter tagFilter)
         {
-            for (int i = 0; i < tags.Length; i++)
+            var allOfTags = tagFilter.AllOfTags;
+            var noneOfTags = tagFilter.NoneOfTags;
+
+            // Doesn't match if it doesn't contain all of tags
+            for (int i = 0; i < allOfTags.Length; i++)
             {
-                if (!osmGeoTags.Contains(tags[i].Key, tags[i].Value))
+                if (!osmGeoTags.Contains(allOfTags[i].Key, allOfTags[i].Value))
+                {
+                    return false;
+                }
+            }
+
+            // Doesn't match if it contains at least none of tags
+            for (int i = 0; i < noneOfTags.Length; i++)
+            {
+                if (osmGeoTags.Contains(noneOfTags[i].Key, noneOfTags[i].Value))
                 {
                     return false;
                 }
@@ -188,25 +199,42 @@
             return true;
         }
 
-        static RelationMember[] GetMembers(this OsmSharp.Relation osmRelation, string[] roles)
+        static RelationMember[] GetMembers(this OsmGeo[] osmGeo, OsmSharp.Relation osmRelation, RelationMemberFilter[] memberFilters)
         {
             var members = new List<RelationMember>();
 
-            for (int r = 0; r < roles.Length; r++)
+            for (int mf = 0; mf < memberFilters.Length; mf++)
             {
-                var osmMember = osmRelation.Members.Where(m => m.Role == roles[r]).ToArray();
-                for (int m = 0; m < osmMember.Length; m++)
+                var filter = memberFilters[mf];
+
+                var osmMembers = osmRelation.Members
+                    .Where(m => m.Type.GetGeoType() == filter.Type && m.Role == filter.Role).ToArray();
+
+                for (int m = 0; m < osmMembers.Length; m++)
                 {
+                    var osmMember = osmMembers[m];
+
+                    var osmMemberTags = osmGeo.FirstOrDefault(geo => geo.Id.Value == osmMember.Id).Tags;
+                    var tagsMatch = osmMemberTags.Match(filter.Tags);
+
+                    if (!tagsMatch)
+                    {
+                        UnityEngine.Debug.Log("Tags don't match: " + osmMember.Id);
+                        continue;
+                    }
+
                     var member = new RelationMember
                     {
-                        Id = osmMember[m].Id,
-                        Type = osmMember[m].Type.GetGeoType(),
-                        Role = osmMember[m].Role
+                        Id = osmMember.Id,
+                        Type = osmMember.Type.GetGeoType(),
+                        Role = osmMember.Role
                     };
 
                     members.Add(member);
                 }
             }
+
+            UnityEngine.Debug.Log(members.Count);
 
             return members.ToArray();
         }

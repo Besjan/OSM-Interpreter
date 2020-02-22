@@ -21,10 +21,31 @@
             var borderData = MessagePackSerializer.Deserialize<Feature>(bytes);
 
             // Construct border
-            var borderObject = new GameObject("Border").transform;
-            var quadPrefab = Resources.Load<GameObject>("Quad");
+            //var borderObject = new GameObject("Border").transform;
 
             var members = borderData.Relations[0].Members;
+
+            var borderPoints = new List<Vector3>();
+            for (int m = 0; m < members.Length; m++)
+            {
+                var line = borderData.Lines.FirstOrDefault(l => l.Id == members[m].Id);
+                var points = line.Points.GetPositions();
+
+                // Reverse line points to match previous line's direction
+                if (borderPoints.Count != 0 && borderPoints.Last() != points[0])
+                {
+                    points = points.Reverse().ToArray();
+                }
+
+                borderPoints.AddRange(points);
+            }
+
+            var firstLine = borderData.Lines.FirstOrDefault(l => l.Id == members[0].Id);
+            var startPoint = new Point[] { firstLine.Points[0] }.GetPositions()[0];
+            borderPoints.Add(startPoint);
+            borderPoints.ToArray().CreateWall("Border");
+
+            return;
 
             for (int m = 0; m < members.Length; m++)
             {
@@ -38,7 +59,7 @@
                 var nextLine = borderData.Lines.FirstOrDefault(l => l.Id == members[(m + 1) % members.Length].Id);
                 points[points.Length - 1] = nextLine.Points[0];
 
-                points.GetPositions().CreateWall(members[m].Id.ToString(), borderObject);
+                //points.GetPositions().CreateWall(members[m].Id.ToString(), borderObject);
             }
         }
 
@@ -80,7 +101,7 @@
             Normals.CalculateTangents(wall);
             Smoothing.ApplySmoothingGroups(wall, faces, 30);
             wall.Refresh();
-            wall.SetMaterial(faces, Resources.Load<Material>("TwoSideWithFace"));
+            wall.SetMaterial(faces, Resources.Load<Material>("Border"));
             wall.gameObject.name = wall.name = name;
             wall.transform.SetParent(parent, true);
         }
