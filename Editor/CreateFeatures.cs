@@ -39,13 +39,33 @@
             }
 
             // Close boundary
-            var firstPoint = new Point[] { boundaryData.Lines.FirstOrDefault(l => l.Id == members[0].Id).Points[0] }.GetPointsWorldPositions()[0];
-            boundaryPoints.Add(firstPoint);
+            //var firstPoint = new Point[] { boundaryData.Lines.FirstOrDefault(l => l.Id == members[0].Id).Points[0] }.GetPointsWorldPositions()[0];
+            //boundaryPoints.Add(firstPoint);
             boundaryPoints.Reverse(); // Normals face outside
-            boundaryPoints = boundaryPoints.AddTileIntersectionPoints();
+            CreateWalls(boundaryPoints);
 
             // boundaryPoints.ToArray().CreateWalls("Boundary");
-            boundaryPoints.ToArray().CreateWall("Boundary");
+            //boundaryPoints.ToArray().CreateWall("Boundary");
+        }
+
+        static void CreateWalls(List<Vector3> boundaryPoints)
+        {
+            List<int> idsPerTile = new List<int>();
+            boundaryPoints = boundaryPoints.AddTileIntersectionPoints(ref idsPerTile);
+
+            var parent = new GameObject("Boundary").transform;
+
+            for (int i = 0; i < idsPerTile.Count() - 1; i++)
+            {
+                var count = idsPerTile[i + 1] - idsPerTile[i] + 1;
+                var points = boundaryPoints.GetRange(idsPerTile[i], count);
+                points.ToArray().CreateWall(i.ToString(), parent);
+            }
+
+            List<Vector3> lastWall = new List<Vector3>();
+            lastWall.AddRange(boundaryPoints.GetRange(idsPerTile.Last(), boundaryPoints.Count() - idsPerTile.Last()));
+            lastWall.AddRange(boundaryPoints.GetRange(0, idsPerTile[0] + 1));
+            lastWall.ToArray().CreateWall((idsPerTile.Count() - 1).ToString(), parent);
         }
 
         static void CreateWalls(this Vector3[] basePoints, string name, Transform parent = null)
@@ -109,7 +129,7 @@
             return positions;
         }
 
-        static List<Vector3> AddTileIntersectionPoints(this List<Vector3> points)
+        static List<Vector3> AddTileIntersectionPoints(this List<Vector3> points, ref List<int> idsPerTile)
         {
             var allPoints = new List<Vector3>();
             allPoints.Add(points[0]);
@@ -122,6 +142,7 @@
                 if (point1.GetTerrainName() != point2.GetTerrainName())
                 {
                     allPoints.Add(GetTileIntersectionPoint(point1, point2));
+                    idsPerTile.Add(allPoints.Count());
                 }
 
                 allPoints.Add(point2);
@@ -226,8 +247,8 @@
         {
             origin.y = 10000;
 
-            RaycastHit hit;
             Ray ray = new Ray(origin, Vector3.down);
+            RaycastHit hit;
             if (Physics.Raycast(ray, out hit, 100000))
             {
                 if (hit.transform.GetComponent<Terrain>())
