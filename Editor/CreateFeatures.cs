@@ -44,8 +44,7 @@
             boundaryPoints.Reverse(); // Normals face outside
             CreateWalls(boundaryPoints);
 
-            // boundaryPoints.ToArray().CreateWalls("Boundary");
-            //boundaryPoints.ToArray().CreateWall("Boundary");
+            boundaryPoints.ToArray().CreateWall("Boundary");
         }
 
         static void CreateWalls(List<Vector3> boundaryPoints)
@@ -66,15 +65,6 @@
             lastWall.AddRange(boundaryPoints.GetRange(idsPerTile.Last(), boundaryPoints.Count() - idsPerTile.Last()));
             lastWall.AddRange(boundaryPoints.GetRange(0, idsPerTile[0] + 1));
             lastWall.ToArray().CreateWall((idsPerTile.Count() - 1).ToString(), parent);
-        }
-
-        static void CreateWalls(this Vector3[] basePoints, string name, Transform parent = null)
-        {
-            var tilePoints = basePoints.GroupBy(bp => bp.GetTerrainName());
-
-            foreach(var group in tilePoints) {
-                group.ToArray().CreateWall(group.Key);
-            }
         }
 
         static void CreateWall(this Vector3[] basePoints, string name, Transform parent = null)
@@ -142,7 +132,7 @@
                 if (point1.GetTerrainName() != point2.GetTerrainName())
                 {
                     allPoints.Add(GetTileIntersectionPoint(point1, point2));
-                    idsPerTile.Add(allPoints.Count());
+                    idsPerTile.Add(allPoints.Count() - 1);
                 }
 
                 allPoints.Add(point2);
