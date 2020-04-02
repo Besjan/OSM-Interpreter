@@ -13,7 +13,8 @@
 
     public static class ExtractFeatures
     {
-        static string SourceDataPath = "Assets/StreamingAssets/Data/berlin.pbf";
+        const string cityDataPath = "Assets/StreamingAssets/Data/berlin.pbf";
+        const string boundaryDataPath = "Assets/StreamingAssets/Data/boundary.cuk";
 
         static double[] centerPointGeo = new double[] { 13.408297, 52.519461 };
         static double[] centerPoint;
@@ -37,7 +38,7 @@
             centerPoint = centerPointGeo.TransformPoint();
         }
 
-        [MenuItem("Cuku/Extract Features")]
+        [MenuItem("Cuku/OSM/Extract Features")]
         static void ExtractFeaturesData()
         {
             Initialize();
@@ -77,7 +78,7 @@
                 }
             };
 
-            using (var fileStream = File.OpenRead(SourceDataPath))
+            using (var fileStream = File.OpenRead(cityDataPath))
             {
                 var source = new PBFOsmStreamSource(fileStream);
 
@@ -169,7 +170,7 @@
                 };
 
                 var bin = MessagePackSerializer.Serialize(feature);
-                File.WriteAllBytes("Assets/StreamingAssets/Data/border.cuk", bin);
+                File.WriteAllBytes(boundaryDataPath, bin);
             }
         }
 
