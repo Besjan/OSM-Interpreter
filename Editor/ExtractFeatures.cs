@@ -16,7 +16,17 @@
         const string cityDataPath = "Assets/StreamingAssets/Data/berlin.pbf";
         const string boundaryDataPath = "Assets/StreamingAssets/Data/boundary.cuk";
 
-        static double[] centerPointGeo = new double[] { 13.408297, 52.519461 };
+        /* https://franzpc.com/apps/coordinate-converter-utm-to-geographic-latitude-longitude.html
+        Berlin center point in decimal degrees
+        Map Datum: WGS 84
+        Zone: 33
+        Hemisphere: N
+        Easting (UTMX): 392000
+        Northing (UTMY): 5820000
+        Click: Convert Standard UTM 
+        Use only 6 decimal points */
+
+        static double[] centerPointGeo = new double[] { 13.408275, 52.519395 };
         static double[] centerPoint;
 
         static ICoordinateTransformation trans;
@@ -94,8 +104,8 @@
                 var relations = new Relation[relationsCompleted.Length];
                 var lines = new List<Line>();
 
-                        UnityEngine.Debug.Log(relationsCompleted.Length);
-          
+                UnityEngine.Debug.Log(relationsCompleted.Length);
+
                 for (int r = 0; r < relations.Length; r++)
                 {
                     // Get RelationMembers
