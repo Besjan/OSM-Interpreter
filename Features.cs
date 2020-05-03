@@ -25,8 +25,7 @@
             for (int m = 0; m < members.Length; m++)
             {
                 var line = boundaryData.Lines.FirstOrDefault(l => l.Id == members[m].Id);
-                var points = line.Points.ToVector3();
-                Utilities.ProjectToTerrain(ref points);
+                var points = line.Points.ToVector3().ProjectToTerrain();
 
                 // Reverse line points to match previous line's direction
                 if (boundaryPoints.Count != 0 && boundaryPoints.Last() != points[0])
