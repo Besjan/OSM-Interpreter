@@ -179,8 +179,8 @@
                     Lines = lines.ToArray()
                 };
 
-                var bin = MessagePackSerializer.Serialize(feature);
-                File.WriteAllBytes(boundaryDataPath, bin);
+                var bytes = MessagePackSerializer.Serialize(feature);
+                File.WriteAllBytes(boundaryDataPath, bytes);
             }
         }
 
