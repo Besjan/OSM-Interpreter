@@ -1,7 +1,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-greed.svg)](LICENSE)
 
 ## Features
-- Convert OSM data to meaningful geometry data for use in Unity
+- Extract Boundary
 
 ----
 
