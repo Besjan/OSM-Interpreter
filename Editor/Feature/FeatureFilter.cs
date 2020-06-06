@@ -1,7 +1,8 @@
 ﻿namespace Cuku.Geo
 {
-    public class GeoFilter
+    public class FeatureFilter
     {
+        public string Name { get; set; }
         public TagFilter Tags { get; set; }
         public RelationMemberFilter[] RelationMembers { get; set; }
     }

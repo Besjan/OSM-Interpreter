@@ -1,0 +1,32 @@
+﻿namespace Cuku.Geo
+{
+	using Sirenix.OdinInspector;
+
+    public class OSMFeatureConfig : SerializedScriptableObject
+    {
+		[PropertySpace, Title("Data"), FilePath(ParentFolder = "Assets/StreamingAssets", Extensions = ".pbf", RequireExistingPath = true)]
+		[InfoBox("City data path in Protocol Buffers format (https://download.geofabrik.de/).")]
+		public string CityOSMData;
+
+		[PropertySpace, FolderPath(ParentFolder = "Assets/StreamingAssets", RequireExistingPath = true)]
+		[InfoBox("Folder path were extracted feature data will be saved.")]
+		public string FeaturesDataPath;
+
+		[PropertySpace, InfoBox("Format used to save and parse geo data.")]
+		public string GeoFormat;
+
+		/// <summary>
+		/// https://franzpc.com/apps/coordinate-converter-utm-to-geographic-latitude-longitude.html
+		/// Berlin center point in decimal degrees
+		/// Map Datum: WGS 84
+		/// Zone: 33
+		/// Hemisphere: N
+		/// Easting(UTMX): 392000
+		/// Northing(UTMY): 5820000
+		/// Click: Convert Standard UTM 
+		/// Use only 6 decimal points
+		/// </summary>
+		[PropertySpace(20), Title("City"), InfoBox("City center coordinates in decimal degrees.")]
+		public double[] CenterCoordinates;
+	}
+}
