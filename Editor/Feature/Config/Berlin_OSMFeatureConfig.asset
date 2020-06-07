@@ -24,6 +24,9 @@ MonoBehaviour:
   CityOSMData: City/Berlin/OSM/berlin-latest.osm.pbf
   FeaturesDataPath: City/Berlin/Features
   GeoFormat: .geo
+  CityName: {fileID: 11400000, guid: ab3e9c57a45f9d742915a37e1d29c39c, type: 2}
   CenterCoordinates:
   - 13.408275
   - 52.519395
+  Features:
+  - {fileID: 11400000, guid: e565ffa469cfb324ba7254fb7831b397, type: 2}

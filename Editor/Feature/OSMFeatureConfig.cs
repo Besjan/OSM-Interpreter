@@ -1,5 +1,7 @@
 ﻿namespace Cuku.Geo
 {
+	using Cuku.Geo.Filter;
+	using Cuku.ScriptableObject;
 	using Sirenix.OdinInspector;
 
     public class OSMFeatureConfig : SerializedScriptableObject
@@ -15,6 +17,9 @@
 		[PropertySpace, InfoBox("Format used to save and parse geo data.")]
 		public string GeoFormat;
 
+		[PropertySpace(20), Title("City"), Required, InlineEditor]
+		public StringSO CityName;
+
 		/// <summary>
 		/// https://franzpc.com/apps/coordinate-converter-utm-to-geographic-latitude-longitude.html
 		/// Berlin center point in decimal degrees
@@ -26,7 +31,10 @@
 		/// Click: Convert Standard UTM 
 		/// Use only 6 decimal points
 		/// </summary>
-		[PropertySpace(20), Title("City"), InfoBox("City center coordinates in decimal degrees.")]
+		[PropertySpace, InfoBox("City center coordinates in decimal degrees.")]
 		public double[] CenterCoordinates;
+
+		[PropertySpace, InlineEditor, InfoBox("Features to extract.")]
+		public FeatureFilter[] Features;
 	}
 }

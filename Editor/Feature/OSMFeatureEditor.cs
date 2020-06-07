@@ -19,8 +19,10 @@
 
 	public class OSMFeatureEditor : OdinEditorWindow
     {
+		string nameSeparator = "_";
+
         #region Editor
-        [MenuItem("Cuku/OSM/Feature Editor", priority = 1)]
+        [MenuItem("Cuku/OSM/Feature Editor")]
         private static void OpenWindow()
         {
             var window = GetWindow<OSMFeatureEditor>();
@@ -40,144 +42,116 @@
 
 		#region Actions
 		[ShowIf("IsConfigValid"), PropertySpace(20), Button(ButtonSizes.Large)]
-		public void ExtractFeaturesData()
+		public void ExtractFeatures()
 		{
 			SetCoordinateTransformation();
 
 			var centerPoint = TransformPoint(FeatureConfig.CenterCoordinates);
+			foreach (var feature in FeatureConfig.Features)
+			{
+				ExtractFeature(feature, centerPoint);
+			}
+		}
 
-			//// Filter
-			//var boundaryFlter = new FeatureFilter
-			//{
-   //             Name = "Boundary",
-			//	Tags = new TagFilter
-			//	{
-			//		AllOfTags = new Tag[]
-			//		 {
-			//			 new Tag { Key = "type", Value = "boundary" },
-			//			 new Tag { Key = "boundary", Value = "administrative" },
-			//			 new Tag { Key = "admin_level", Value = "4" }
-			//		 },
-			//		NoneOfTags = new Tag[] { }
-			//	},
-			//	RelationMembers = new RelationMemberFilter[]
-			//	{
-			//		new RelationMemberFilter
-			//		{
-			//			Type = Type.Line,
-			//			Role = "outer",
-			//			Tags = new TagFilter
-			//			{
-			//				AllOfTags = new Tag[]
-			//				{
-			//					new Tag { Key = "boundary", Value = "administrative" },
-			//					new Tag { Key = "admin_level", Value = "4" }
-			//				},
-			//				NoneOfTags = new Tag[]
-			//				{
-			//					new Tag { Key = "description", Value = "Berlin Exclave" }
-			//				}
-			//			}
-			//		}
-			//	}
-			//};
+		private void ExtractFeature(FeatureFilter featureFilter, double[] centerPoint)
+		{
+			using (var fileStream = File.OpenRead(FeatureConfig.CityOSMData.GetPathInStreamingAssets()))
+			{
+				var source = new PBFOsmStreamSource(fileStream);
 
-			//using (var fileStream = File.OpenRead(FeatureConfig.CityOSMData.GetPathInStreamingAssets()))
-			//{
-			//	var source = new PBFOsmStreamSource(fileStream);
+				var filtered = from osmGeo in source
+							   where osmGeo.Type == OsmGeoType.Node ||
+							   osmGeo.Type == OsmGeoType.Way ||
+							   (osmGeo.Type == OsmGeoType.Relation && osmGeo.Tags != null && DoTagsMatch(osmGeo.Tags, featureFilter.Tags))
+							   select osmGeo;
 
-			//	var filtered = from osmGeo in source
-			//				   where osmGeo.Type == OsmGeoType.Node ||
-			//				   osmGeo.Type == OsmGeoType.Way ||
-			//				   (osmGeo.Type == OsmGeoType.Relation && osmGeo.Tags != null && Match(osmGeo.Tags, boundaryFlter.Tags))
-			//				   select osmGeo;
+				var complete = filtered.ToComplete();
 
-			//	var complete = filtered.ToComplete();
+				var relationsCompleted = complete.Where(x => x.Type == OsmGeoType.Relation).ToArray();
+				var relations = new Relation[relationsCompleted.Length];
+				var lines = new List<Line>();
 
-			//	var relationsCompleted = complete.Where(x => x.Type == OsmGeoType.Relation).ToArray();
-			//	var relations = new Relation[relationsCompleted.Length];
-			//	var lines = new List<Line>();
+				UnityEngine.Debug.Log(relationsCompleted.Length);
 
-			//	UnityEngine.Debug.Log(relationsCompleted.Length);
+				for (int r = 0; r < relations.Length; r++)
+				{
+					// Get RelationMembers
+					foreach (OsmGeo osmgeo in filtered)
+					{
+						var osmRelation = osmgeo as OsmSharp.Relation;
+						if (osmRelation == null || osmRelation.Id != relationsCompleted[r].Id) continue;
 
-			//	for (int r = 0; r < relations.Length; r++)
-			//	{
-			//		// Get RelationMembers
-			//		foreach (OsmGeo osmgeo in filtered)
-			//		{
-			//			var osmRelation = osmgeo as OsmSharp.Relation;
-			//			if (osmRelation == null || osmRelation.Id != relationsCompleted[r].Id) continue;
+						var relationMembers = GetMembers(filtered.ToArray(), osmRelation, featureFilter.RelationMembers);
+						UnityEngine.Debug.Log(relationMembers.Length);
 
-			//			var relationMembers = GetMembers(filtered.ToArray(), osmRelation, boundaryFlter.RelationMembers);
-			//			UnityEngine.Debug.Log(relationMembers.Length);
+						var relation = new Relation
+						{
+							Id = osmRelation.Id.Value,
+							Type = Type.Relation,
+							Tags = featureFilter.Tags.AllOfTags.Select(tso => new Tag() { Key = tso.Key, Value = tso.Value }).ToArray(),
+							Members = relationMembers
+						};
 
-			//			var relation = new Relation
-			//			{
-			//				Id = osmRelation.Id.Value,
-			//				Type = Type.Relation,
-			//				Tags = boundaryFlter.Tags.AllOfTags,
-			//				Members = relationMembers
-			//			};
+						relations[r] = relation;
+					}
 
-			//			relations[r] = relation;
-			//		}
+					var relationMemberIds = relations[r].Members.Select(rm => rm.Id);
 
-			//		var relationMemberIds = relations[r].Members.Select(rm => rm.Id);
+					// Get Ids
+					Dictionary<long, long[]> memberNodes = new Dictionary<long, long[]>();
+					List<long> nodeIds = new List<long>();
+					foreach (OsmGeo osmgeo in filtered)
+					{
+						var way = osmgeo as Way;
+						if (way == null || !relationMemberIds.Contains(way.Id.Value)) continue;
 
-			//		// Get Ids
-			//		Dictionary<long, long[]> memberNodes = new Dictionary<long, long[]>();
-			//		List<long> nodeIds = new List<long>();
-			//		foreach (OsmGeo osmgeo in filtered)
-			//		{
-			//			var way = osmgeo as Way;
-			//			if (way == null || !relationMemberIds.Contains(way.Id.Value)) continue;
+						memberNodes.Add(way.Id.Value, way.Nodes);
+						nodeIds.AddRange(way.Nodes);
+					}
 
-			//			memberNodes.Add(way.Id.Value, way.Nodes);
-			//			nodeIds.AddRange(way.Nodes);
-			//		}
+					// Get Nodes
+					List<Node> nodes = new List<Node>();
+					foreach (OsmGeo osmGeo in filtered)
+					{
+						var node = osmGeo as Node;
+						if (node == null || !nodeIds.Contains(node.Id.Value)) continue;
+						nodes.Add(node);
+					}
 
-			//		// Get Nodes
-			//		List<Node> nodes = new List<Node>();
-			//		foreach (OsmGeo osmGeo in filtered)
-			//		{
-			//			var node = osmGeo as Node;
-			//			if (node == null || !nodeIds.Contains(node.Id.Value)) continue;
-			//			nodes.Add(node);
-			//		}
+					// Add Relation Member Points
+					for (int m = 0; m < relations[r].Members.Length; m++)
+					{
+						var member = relations[r].Members[m];
+						var points = new List<Point>();
+						var memberNodeIds = memberNodes.FirstOrDefault(mn => mn.Key == member.Id).Value;
+						for (int ni = 0; ni < memberNodeIds.Length; ni++)
+						{
+							var node = nodes.FirstOrDefault(n => n.Id.Value == memberNodeIds[ni]);
+							points.Add(ToPoint(node, centerPoint));
+						}
 
-			//		// Add Relation Member Points
-			//		for (int m = 0; m < relations[r].Members.Length; m++)
-			//		{
-			//			var member = relations[r].Members[m];
-			//			var points = new List<Point>();
-			//			var memberNodeIds = memberNodes.FirstOrDefault(mn => mn.Key == member.Id).Value;
-			//			for (int ni = 0; ni < memberNodeIds.Length; ni++)
-			//			{
-			//				var node = nodes.FirstOrDefault(n => n.Id.Value == memberNodeIds[ni]);
-			//				points.Add(ToPoint(node, centerPoint));
-			//			}
+						var line = new Line
+						{
+							Id = member.Id,
+							Points = points.ToArray()
+						};
 
-			//			var line = new Line
-			//			{
-			//				Id = member.Id,
-			//				Points = points.ToArray()
-			//			};
+						lines.Add(line);
+					}
+				}
 
-			//			lines.Add(line);
-			//		}
-			//	}
+				var feature = new Feature
+				{
+					Relations = relations,
+					Lines = lines.ToArray()
+				};
 
-			//	var feature = new Feature
-			//	{
-			//		Relations = relations,
-			//		Lines = lines.ToArray()
-			//	};
+				var bytes = MessagePackSerializer.Serialize(feature);
 
-			//	var bytes = MessagePackSerializer.Serialize(feature);
-
-			//	var boundaryDataPath = Path.Combine(FeatureConfig.FeaturesDataPath.GetPathInStreamingAssets(), boundaryFlter.Name + FeatureConfig.GeoFormat);
-			//	File.WriteAllBytes(boundaryDataPath, bytes);
-			//}
+				var featureFileName = FeatureConfig.CityName.Value + nameSeparator + featureFilter.Name + FeatureConfig.GeoFormat;
+				var featureDataPath = Path.Combine(FeatureConfig.FeaturesDataPath.GetPathInStreamingAssets(), featureFileName);
+				File.WriteAllBytes(featureDataPath, bytes);
+			}
 		}
 		#endregion
 
@@ -196,7 +170,7 @@
             CoordinateTransformation = ctfac.CreateFromCoordinateSystems(sourceCS, targetCS);
         }
 
-        bool Match(TagsCollectionBase osmGeoTags, TagFilter tagFilter)
+        bool DoTagsMatch(TagsCollectionBase osmGeoTags, TagFilter tagFilter)
         {
             var allOfTags = tagFilter.AllOfTags;
             var noneOfTags = tagFilter.NoneOfTags;
@@ -238,7 +212,7 @@
                     var osmMember = osmMembers[m];
 
                     var osmMemberTags = osmGeo.FirstOrDefault(geo => geo.Id.Value == osmMember.Id).Tags;
-                    var tagsMatch = Match(osmMemberTags, filter.Tags);
+                    var tagsMatch = DoTagsMatch(osmMemberTags, filter.Tags);
 
                     if (!tagsMatch)
                     {
