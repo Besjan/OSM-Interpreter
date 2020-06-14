@@ -10,3 +10,8 @@
 - [OsmSharp](https://github.com/OsmSharp/core)
 - [ProjNet](https://github.com/NetTopologySuite/ProjNet4GeoAPI)
 - [MessagePack](https://github.com/neuecc/MessagePack-CSharp)
+
+----
+
+## Notes
+- If there are conflicts with "System.Runtime.CompilerServices.Unsafe.dll" from Unity Collections package, copy the later from ".../Library/PackageCache" to "Packages" and delete "System.Runtime.CompilerServices.Unsafe.dll".
