@@ -6,11 +6,11 @@
 
     public class OSMFeatureConfig : SerializedScriptableObject
     {
-		[PropertySpace, Title("Data"), FilePath(ParentFolder = "Assets/StreamingAssets", Extensions = ".pbf", RequireExistingPath = true)]
+		[PropertySpace, Title("Data"), FilePath(AbsolutePath = true, RequireExistingPath = true)]
 		[InfoBox("City data path in Protocol Buffers format (https://download.geofabrik.de/).")]
 		public string CityOSMData;
 
-		[PropertySpace, FolderPath(ParentFolder = "Assets/StreamingAssets", RequireExistingPath = true)]
+		[PropertySpace, FolderPath(AbsolutePath = true, RequireExistingPath = true)]
 		[InfoBox("Folder path were extracted feature data will be saved.")]
 		public string FeaturesDataPath;
 
