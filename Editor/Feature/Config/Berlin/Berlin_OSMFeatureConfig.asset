@@ -21,8 +21,8 @@ MonoBehaviour:
     PrefabModificationsReferencedUnityObjects: []
     PrefabModifications: []
     SerializationNodes: []
-  CityOSMData: City/Berlin/OSM/berlin-latest.osm.pbf
-  FeaturesDataPath: City/Berlin/Features
+  CityOSMData: C:/Projects/City/Berlin/OSM/berlin-latest.osm.pbf
+  FeaturesDataPath: C:/Projects/City/Berlin/Features
   GeoFormat: .geo
   CityName: {fileID: 11400000, guid: a8d5db77b5440f947a94af8f55eaa1db, type: 2}
   CenterCoordinates:
