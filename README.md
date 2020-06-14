@@ -6,6 +6,7 @@
 ----
 
 ## Dependencies
+- [ScriptableObjects](https://github.com/Besjan/ScriptableObjects)
 - [Utilities](https://github.com/Besjan/Utilities)
 - [OsmSharp](https://github.com/OsmSharp/core)
 - [protobuf-net](https://github.com/protobuf-net/protobuf-net)
