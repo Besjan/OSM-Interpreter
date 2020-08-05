@@ -9,8 +9,8 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: def45d17676d432468f8bc2e3135bcd8, type: 3}
-  m_Name: boundary_RelationMemberTagFilter
+  m_Script: {fileID: 11500000, guid: c6affaa15b0d1154394240cbfd1f6d19, type: 3}
+  m_Name: boundary_Feature
   m_EditorClassIdentifier: 
   serializationData:
     SerializedFormat: 2
@@ -21,8 +21,7 @@ MonoBehaviour:
     PrefabModificationsReferencedUnityObjects: []
     PrefabModifications: []
     SerializationNodes: []
-  AllOfTags:
-  - {fileID: 11400000, guid: a7eba0839585c0b45beb7b88d452bb0c, type: 2}
-  - {fileID: 11400000, guid: 050f67850dc9daa40b5f0644004324e4, type: 2}
-  NoneOfTags:
-  - {fileID: 11400000, guid: 0914d744dc1c75f4ab99f421de24355f, type: 2}
+  Name: Boundary
+  Tags: {fileID: 11400000, guid: 6aa78bfa992832643a46c28f64524cde, type: 2}
+  RelationMembers:
+  - {fileID: 11400000, guid: 34a70afce59ebb64a85f6b68873a7a72, type: 2}

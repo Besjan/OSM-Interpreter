@@ -9,8 +9,8 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 724f82010fdbcc349ad9c81122fb21e2, type: 3}
-  m_Name: boundary_RelationMemberFilter
+  m_Script: {fileID: 11500000, guid: feab06a198bbad144843f4f1403416c4, type: 3}
+  m_Name: landuse-forest
   m_EditorClassIdentifier: 
   serializationData:
     SerializedFormat: 2
@@ -21,6 +21,5 @@ MonoBehaviour:
     PrefabModificationsReferencedUnityObjects: []
     PrefabModifications: []
     SerializationNodes: []
-  Type: 1
-  Role: outer
-  Tags: {fileID: 11400000, guid: db4496bffaa80fb47a881f0f923d8b0e, type: 2}
+  Key: landuse
+  Value: forest

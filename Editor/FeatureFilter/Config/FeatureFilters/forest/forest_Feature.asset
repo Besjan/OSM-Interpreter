@@ -9,8 +9,8 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 952ac831f7e7dc74d82f2656ed46d2ea, type: 3}
-  m_Name: Berlin_OSMFeatureConfig
+  m_Script: {fileID: 11500000, guid: c6affaa15b0d1154394240cbfd1f6d19, type: 3}
+  m_Name: forest_Feature
   m_EditorClassIdentifier: 
   serializationData:
     SerializedFormat: 2
@@ -21,12 +21,8 @@ MonoBehaviour:
     PrefabModificationsReferencedUnityObjects: []
     PrefabModifications: []
     SerializationNodes: []
-  CityOSMData: C:/Projects/City/Berlin/OSM/berlin-latest.osm.pbf
-  FeaturesDataPath: C:/Projects/City/Berlin/Features
-  GeoFormat: .geo
-  CityName: {fileID: 11400000, guid: a8d5db77b5440f947a94af8f55eaa1db, type: 2}
-  CenterCoordinates:
-  - 13.408275
-  - 52.519395
-  Features:
-  - {fileID: 11400000, guid: 9be95b056b28a0e41996401f5516b49a, type: 2}
+  Name: Forest
+  Tags: {fileID: 11400000, guid: 4227193f2babca44e9ac11a512016f0c, type: 2}
+  RelationMembers:
+  - {fileID: 11400000, guid: 7cfe07b7b7cf5c64c807e36f1a72d72c, type: 2}
+  - {fileID: 11400000, guid: cb8c6a810fc991d4dbf6e2f798044a61, type: 2}

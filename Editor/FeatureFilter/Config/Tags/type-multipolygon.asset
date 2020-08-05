@@ -9,8 +9,8 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: def45d17676d432468f8bc2e3135bcd8, type: 3}
-  m_Name: boundary_TagFilter
+  m_Script: {fileID: 11500000, guid: feab06a198bbad144843f4f1403416c4, type: 3}
+  m_Name: type-multipolygon
   m_EditorClassIdentifier: 
   serializationData:
     SerializedFormat: 2
@@ -21,8 +21,5 @@ MonoBehaviour:
     PrefabModificationsReferencedUnityObjects: []
     PrefabModifications: []
     SerializationNodes: []
-  AllOfTags:
-  - {fileID: 11400000, guid: 87ff1907474785d41aa60945f9180c78, type: 2}
-  - {fileID: 11400000, guid: a7eba0839585c0b45beb7b88d452bb0c, type: 2}
-  - {fileID: 11400000, guid: 050f67850dc9daa40b5f0644004324e4, type: 2}
-  NoneOfTags: []
+  Key: type
+  Value: multipolygon
