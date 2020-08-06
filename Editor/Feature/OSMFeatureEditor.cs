@@ -1,23 +1,24 @@
 ﻿namespace Cuku.Geo
 {
-    using System.Collections.Generic;
-    using UnityEditor;
-    using System.IO;
-    using System.Linq;
-    using OsmSharp.Streams;
-    using OsmSharp;
-    using ProjNet.CoordinateSystems.Transformations;
-    using ProjNet.CoordinateSystems;
-    using OsmSharp.Tags;
-    using MessagePack;
-    using Sirenix.OdinInspector.Editor;
-    using Sirenix.Utilities.Editor;
-    using Sirenix.OdinInspector;
-    using Sirenix.Utilities;
-    using Cuku.Utilities;
-    using Cuku.Geo.Filter;
+	using System.Collections.Generic;
+	using UnityEditor;
+	using System.IO;
+	using System.Linq;
+	using OsmSharp.Streams;
+	using OsmSharp;
+	using ProjNet.CoordinateSystems.Transformations;
+	using ProjNet.CoordinateSystems;
+	using OsmSharp.Tags;
+	using MessagePack;
+	using Sirenix.OdinInspector.Editor;
+	using Sirenix.Utilities.Editor;
+	using Sirenix.OdinInspector;
+	using Sirenix.Utilities;
+	using Cuku.Utilities;
+	using Cuku.Geo.Filter;
+	using System;
 
-    public class OSMFeatureEditor : OdinEditorWindow
+	public class OSMFeatureEditor : OdinEditorWindow
     {
         string nameSeparator = "_";
 
@@ -44,6 +45,8 @@
         [ShowIf("IsConfigValid"), PropertySpace(20), Button(ButtonSizes.Large)]
         public void ExtractFeatures()
         {
+            var startTime = DateTime.UtcNow;
+
             SetCoordinateTransformation();
 
             var centerPoint = TransformPoint(FeatureConfig.CenterCoordinates);
@@ -51,82 +54,163 @@
             {
                 ExtractFeature(feature, centerPoint);
             }
+
+            UnityEngine.Debug.Log(string.Format("Time to extract features: {0}s", (DateTime.UtcNow - startTime).Minutes));
         }
 
         private void ExtractFeature(FeatureFilter featureFilter, double[] centerPoint)
         {
             using (var fileStream = File.OpenRead(FeatureConfig.CityOSMData.GetPathInStreamingAssets()))
             {
+                var membersFilter = featureFilter.RelationMembers;
+                var relationMembersTags = membersFilter.Select(rm => rm.Tags).ToArray();
+
                 var source = new PBFOsmStreamSource(fileStream);
 
-                var filtered = from osmGeo in source
-                               where osmGeo.Type == OsmGeoType.Node ||
-                               osmGeo.Type == OsmGeoType.Way ||
-                               (osmGeo.Type == OsmGeoType.Relation && osmGeo.Tags != null && DoTagsMatch(osmGeo.Tags, featureFilter.Tags))
-                               select osmGeo;
+                IEnumerable<OsmGeo> filtered = from osmGeo in source
+                                               where osmGeo.Type == OsmGeoType.Node ||
+                                               osmGeo.Type == OsmGeoType.Way ||
+                                               (osmGeo.Type == OsmGeoType.Relation && osmGeo.Tags != null && DoTagsMatch(osmGeo.Tags, featureFilter.Tags))
+                                               select osmGeo;
 
-                var complete = filtered.ToComplete();
+                List<Node> nodes = new List<Node>();
+                List<Way> ways = new List<Way>();
+                List<OsmSharp.Relation> relations = new List<OsmSharp.Relation>();
 
-                var relationsCompleted = complete.Where(x => x.Type == OsmGeoType.Relation).ToArray();
-                var relations = new Relation[relationsCompleted.Length];
-                var lines = new List<Line>();
-
-                UnityEngine.Debug.Log(relationsCompleted.Length);
-
-                for (int r = 0; r < relations.Length; r++)
+                foreach (var geo in filtered)
                 {
-                    // Get RelationMembers
-                    foreach (OsmGeo osmgeo in filtered)
+                    switch (geo.Type)
                     {
-                        var osmRelation = osmgeo as OsmSharp.Relation;
-                        if (osmRelation == null || osmRelation.Id != relationsCompleted[r].Id) continue;
+                        case OsmGeoType.Node:
+                            nodes.Add(geo as Node);
+                            break;
+                        case OsmGeoType.Way:
+                            if (geo.Tags != null && DoTagsMatch(geo.Tags, relationMembersTags))
+                                ways.Add(geo as Way);
+                            break;
+                        case OsmGeoType.Relation:
+                            if (geo.Tags != null && (DoTagsMatch(geo.Tags, featureFilter.Tags) || DoTagsMatch(geo.Tags, relationMembersTags)))
+                                relations.Add(geo as OsmSharp.Relation);
+                            break;
+                    }
+                }
 
-                        var relationMembers = GetMembers(filtered.ToArray(), osmRelation, featureFilter.RelationMembers);
-                        UnityEngine.Debug.Log(relationMembers.Length);
+                filtered = null;
 
-                        var relation = new Relation
+                UnityEngine.Debug.Log("Nodes: " + nodes.Count);
+                UnityEngine.Debug.Log("Ways: " + ways.Count);
+                UnityEngine.Debug.Log("Relations: " + relations.Count);
+
+                var featureRelations = new List<Relation>();
+                var featureLines = new List<Line>();
+
+                // Extract feature relations
+                for (int r = 0; r < relations.Count; r++)
+                {
+                    var relationGeo = relations[r];
+
+                    var relationMembers = GetRelationMembers(relationGeo);
+
+                    var relation = new Relation
+                    {
+                        Id = relationGeo.Id.Value,
+                        Type = Type.Relation,
+                        Tags = featureFilter.Tags.AllOfTags.Select(tso => new Tag() { Key = tso.Key, Value = tso.Value }).ToArray(),
+                        Members = relationMembers
+                    };
+
+                    featureRelations.Add(relation);
+
+                    ExtractLines(relationMembers);
+                }
+
+                // Extract relation members
+                RelationMember[] GetRelationMembers(OsmSharp.Relation relationGeo)
+                {
+                    var members = new List<RelationMember>();
+
+                    for (int mf = 0; mf < membersFilter.Length; mf++)
+                    {
+                        var memberFilter = membersFilter[mf];
+
+                        var osmMembers = relationGeo.Members
+                            .Where(m => GetGeoType(m.Type) == memberFilter.Type && m.Role == memberFilter.Role).ToArray();
+
+                        for (int m = 0; m < osmMembers.Length; m++)
                         {
-                            Id = osmRelation.Id.Value,
-                            Type = Type.Relation,
-                            Tags = featureFilter.Tags.AllOfTags.Select(tso => new Tag() { Key = tso.Key, Value = tso.Value }).ToArray(),
-                            Members = relationMembers
-                        };
+                            var osmMember = osmMembers[m];
 
-                        relations[r] = relation;
+                            OsmGeo osmMemberGeo = null;
+                            switch (osmMember.Type)
+                            {
+                                case OsmGeoType.Node:
+                                    osmMemberGeo = nodes.FirstOrDefault(geo => geo.Id.Value == osmMember.Id);
+                                    break;
+                                case OsmGeoType.Way:
+                                    osmMemberGeo = ways.FirstOrDefault(geo => geo.Id.Value == osmMember.Id);
+                                    break;
+                                case OsmGeoType.Relation:
+                                    osmMemberGeo = relations.FirstOrDefault(geo => geo.Id.Value == osmMember.Id);
+                                    break;
+                            }
+
+                            if (osmMemberGeo == null)
+                            {
+                                UnityEngine.Debug.Log("Relation Member tags don't match: " + osmMember.Id);
+                                continue;
+                            }
+
+                            if (DoTagsMatch(osmMemberGeo.Tags, memberFilter.Tags))
+                            {
+                                var member = new RelationMember
+                                {
+                                    Id = osmMember.Id,
+                                    Type = GetGeoType(osmMember.Type),
+                                    Role = osmMember.Role
+                                };
+
+                                members.Add(member);
+                            }
+                        }
                     }
 
-                    var relationMemberIds = relations[r].Members.Select(rm => rm.Id);
+                    return members.ToArray();
+                }
 
-                    // Get Ids
+                // Extract feature lines and points
+                void ExtractLines(RelationMember[] members)
+                {
+                    // Get node ids
                     Dictionary<long, long[]> memberNodes = new Dictionary<long, long[]>();
                     List<long> nodeIds = new List<long>();
-                    foreach (OsmGeo osmgeo in filtered)
-                    {
-                        var way = osmgeo as Way;
-                        if (way == null || !relationMemberIds.Contains(way.Id.Value)) continue;
 
-                        memberNodes.Add(way.Id.Value, way.Nodes);
-                        nodeIds.AddRange(way.Nodes);
+                    for (int m = 0; m < members.Length; m++)
+                    {
+                        var member = members[m];
+                        if (member.Type == Type.Line)
+                        {
+                            var way = ways.FirstOrDefault(w => w.Id == member.Id);
+                            memberNodes.Add(way.Id.Value, way.Nodes);
+                            nodeIds.AddRange(way.Nodes);
+                        }
                     }
 
-                    // Get Nodes
-                    List<Node> nodes = new List<Node>();
-                    foreach (OsmGeo osmGeo in filtered)
+                    // Get nodes
+                    List<Node> memberNodesGeo = new List<Node>();
+                    for (int ni = 0; ni < nodeIds.Count; ni++)
                     {
-                        var node = osmGeo as Node;
-                        if (node == null || !nodeIds.Contains(node.Id.Value)) continue;
-                        nodes.Add(node);
+                        memberNodesGeo.Add(nodes.FirstOrDefault(n => n.Id == nodeIds[ni]));
                     }
 
-                    // Add Relation Member Points
-                    for (int m = 0; m < relations[r].Members.Length; m++)
+                    // Extract points
+                    for (int m = 0; m < members.Length; m++)
                     {
-                        var member = relations[r].Members[m];
+                        var member = members[m];
                         var points = new List<Point>();
                         var memberNodeIds = memberNodes.FirstOrDefault(mn => mn.Key == member.Id).Value;
                         for (int ni = 0; ni < memberNodeIds.Length; ni++)
                         {
-                            var node = nodes.FirstOrDefault(n => n.Id.Value == memberNodeIds[ni]);
+                            var node = memberNodesGeo.FirstOrDefault(n => n.Id.Value == memberNodeIds[ni]);
                             points.Add(ToPoint(node, centerPoint));
                         }
 
@@ -136,14 +220,14 @@
                             Points = points.ToArray()
                         };
 
-                        lines.Add(line);
+                        featureLines.Add(line);
                     }
                 }
 
                 var feature = new Feature
                 {
-                    Relations = relations,
-                    Lines = lines.ToArray()
+                    Relations = featureRelations.ToArray(),
+                    Lines = featureLines.ToArray()
                 };
 
                 var bytes = MessagePackSerializer.Serialize(feature);
@@ -168,6 +252,20 @@
 
             CoordinateTransformationFactory ctfac = new CoordinateTransformationFactory();
             CoordinateTransformation = ctfac.CreateFromCoordinateSystems(sourceCS, targetCS);
+        }
+
+        bool DoTagsMatch(TagsCollectionBase osmGeoTags, TagFilter[] tagFilters)
+        {
+            foreach (var tagFilter in tagFilters)
+            {
+                // At least one tag filter has to match
+                if (DoTagsMatch(osmGeoTags, tagFilter))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         bool DoTagsMatch(TagsCollectionBase osmGeoTags, TagFilter tagFilter)
