@@ -55,7 +55,7 @@
                 ExtractFeature(feature, centerPoint);
             }
 
-            UnityEngine.Debug.Log(string.Format("Time to extract features: {0}s", (DateTime.UtcNow - startTime).Minutes));
+            UnityEngine.Debug.Log(string.Format("Time to extract features: {0}", (DateTime.UtcNow - startTime).ToString(@"hh\:mm\:ss\:fff")));
         }
 
         private void ExtractFeature(FeatureFilter featureFilter, double[] centerPoint)
