@@ -11,7 +11,6 @@
 - [OsmSharp](https://github.com/OsmSharp/core)
 - [protobuf-net](https://github.com/protobuf-net/protobuf-net)
 - [ProjNet](https://github.com/NetTopologySuite/ProjNet4GeoAPI)
-- [protobuf-net](https://github.com/protobuf-net/protobuf-net)
 - [MessagePack](https://github.com/neuecc/MessagePack-CSharp)
 - [Geo](https://gist.github.com/Besjan/64b8ddbfd74d9ed7fc438c502bd7d257)
 
